@@ -33,7 +33,7 @@ public class XmlGG {
         String src = xmlGG.generate();
         File javaFile = new File(String.format("%s.java", className));
         FileUtils.writeStringToFile(javaFile, src);
-        System.out.println(String.format("Wrote file %s",javaFile.getAbsolutePath()));
+        System.out.println(String.format("Wrote file %s", javaFile.getAbsolutePath()));
     }
 
     public XmlGG(String xml, String className) {
@@ -49,6 +49,7 @@ public class XmlGG {
         Document document = builder.parse(inStream);
 
         Element element = document.getDocumentElement();
+        removeEmptyTextNodes(element);
 
         StringWriter src = new StringWriter();
         classDeclarationStart(src);
@@ -100,7 +101,6 @@ public class XmlGG {
             }
         }
         if (element.hasAttribute(XMLNS_ATTRIBUTE)) {
-            String attribute = element.getAttribute(XMLNS_ATTRIBUTE);
             return element.getAttributeNode(XMLNS_ATTRIBUTE).getValue();
         }
         return null;
@@ -168,6 +168,7 @@ public class XmlGG {
 
         }
         attributes(node, src);
+        removeEmptyTextNodes(node);
         if (node.hasChildNodes()) {
             src.append(".with(");
             NodeList childNodes = node.getChildNodes();
@@ -178,6 +179,18 @@ public class XmlGG {
                 }
             }
             src.append(")\n");
+        }
+    }
+
+    private void removeEmptyTextNodes(Element node) {
+        if (node.hasChildNodes()) {
+            NodeList childNodes = node.getChildNodes();
+            for (int i = 0; i < childNodes.getLength(); i++) {
+                Node child = childNodes.item(i);
+                if (child.getNodeType() == Node.TEXT_NODE && (child.getNodeValue() == null || child.getNodeValue().trim().equals(""))) {
+                    node.removeChild(child);
+                }
+            }
         }
     }
 

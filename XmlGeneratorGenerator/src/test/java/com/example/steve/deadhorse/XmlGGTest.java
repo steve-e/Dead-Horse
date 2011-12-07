@@ -29,7 +29,7 @@ public class XmlGGTest {
         Iterable<? extends JavaFileObject> javaFileObjects = Arrays.asList(javaSource);
         JavaCompiler.CompilationTask task = compiler.getTask(null, fileManager, null, null, null, javaFileObjects);
         Boolean result = task.call();
-        //System.out.println("src = " + src);
+        System.out.println("src = " + src);
         assertTrue("compilation should pass", result);
     }
 
@@ -58,7 +58,10 @@ public class XmlGGTest {
 
     @Test
     public void testChild() throws Exception {
-        String xml = "<root><child/></root>";
+        String xml =
+                "<root>" +
+                        "   <child/>" +
+                        "</root>";
         XmlGG xmlGG = new XmlGG(xml, "Test");
         String src = xmlGG.generate();
         assertThat(src, containsString("document(\"root\").with(" +
