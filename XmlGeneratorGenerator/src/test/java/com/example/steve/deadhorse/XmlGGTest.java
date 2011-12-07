@@ -3,7 +3,6 @@ package com.example.steve.deadhorse;
 import org.junit.Test;
 
 import javax.tools.*;
-
 import java.net.URI;
 import java.util.Arrays;
 
@@ -30,7 +29,7 @@ public class XmlGGTest {
         Iterable<? extends JavaFileObject> javaFileObjects = Arrays.asList(javaSource);
         JavaCompiler.CompilationTask task = compiler.getTask(null, fileManager, null, null, null, javaFileObjects);
         Boolean result = task.call();
-        System.out.println("src = " + src);
+        //System.out.println("src = " + src);
         assertTrue("compilation should pass", result);
     }
 
@@ -47,8 +46,7 @@ public class XmlGGTest {
          * @param code the source code for the compilation unit represented by this file object
          */
         JavaSourceFromString(String name, String code) {
-            super(URI.create("string:///" + name.replace('.', '/') + Kind.SOURCE.extension),
-                    Kind.SOURCE);
+            super(URI.create("string:///" + name.replace('.', '/') + Kind.SOURCE.extension), Kind.SOURCE);
             this.code = code;
         }
 
@@ -119,7 +117,7 @@ public class XmlGGTest {
 
     @Test
     public void testElementWithNamespace() throws Exception {
-        String xml = "<root xmlns=\"foo:bar\" />";
+        String xml = "<root xmlns:foo=\"bar\" />";
         XmlGG xmlGG = new XmlGG(xml, "Test");
         String src = xmlGG.generate();
         assertThat(src, containsString("document(\"root\").build()"));
@@ -128,7 +126,7 @@ public class XmlGGTest {
 
     @Test
     public void testRootElementInNamespace() throws Exception {
-        String xml = "<foo:root xmlns=\"foo:bar\" />";
+        String xml = "<foo:root xmlns:foo=\"bar\" />";
         XmlGG xmlGG = new XmlGG(xml, "Test");
         String src = xmlGG.generate();
         assertThat(src, containsString("document(\"root\",NamespaceUriPrefixMapping.namespace(\"bar\",\"foo\")).build()"));
@@ -136,25 +134,26 @@ public class XmlGGTest {
     }
 
     @Test
-       public void testElementInNamespace() throws Exception {
-           String xml = "<root><baz:child xmlns=\"baz:buzz\" /></root>";
-           XmlGG xmlGG = new XmlGG(xml, "Test");
-           String src = xmlGG.generate();
-           assertThat(src, containsString("document(\"root\").with(" +
-                   "element(NamespaceUriPrefixMapping.namespace(\"buzz\",\"baz\"),\"child\"))"));
-           canCompile(src);
-       }
+    public void testElementInNamespace() throws Exception {
+        String xml = "<root><baz:child xmlns:baz=\"buzz\" /></root>";
+        XmlGG xmlGG = new XmlGG(xml, "Test");
+        String src = xmlGG.generate();
+        assertThat(src, containsString("document(\"root\").with(" +
+                "element(NamespaceUriPrefixMapping.namespace(\"buzz\",\"baz\"),\"child\"))"));
+        canCompile(src);
+    }
+
     @Test
-       public void testDescendantElementInNamespace() throws Exception {
-           String xml = "<root><baz:child xmlns=\"baz:buzz\" ><baz:foo/></baz:child></root>";
-           XmlGG xmlGG = new XmlGG(xml, "Test");
-           String src = xmlGG.generate();
-           assertThat(src, containsString("document(\"root\").with(" +
-                   "element(NamespaceUriPrefixMapping.namespace(\"buzz\",\"baz\"),\"child\").with(" +
-                   "element(NamespaceUriPrefixMapping.namespace(\"buzz\",\"baz\"),\"foo\")"+
-                   ""));
-           canCompile(src);
-       }
+    public void testDescendantElementInNamespace() throws Exception {
+        String xml = "<root><baz:child xmlns:baz=\"buzz\" ><baz:foo/></baz:child></root>";
+        XmlGG xmlGG = new XmlGG(xml, "Test");
+        String src = xmlGG.generate();
+        assertThat(src, containsString("document(\"root\").with(" +
+                "element(NamespaceUriPrefixMapping.namespace(\"buzz\",\"baz\"),\"child\").with(" +
+                "element(NamespaceUriPrefixMapping.namespace(\"buzz\",\"baz\"),\"foo\")" +
+                ""));
+        canCompile(src);
+    }
 
     @Test
     public void testChildWithText() throws Exception {

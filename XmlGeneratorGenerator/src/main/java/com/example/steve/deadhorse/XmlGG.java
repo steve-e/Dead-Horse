@@ -1,5 +1,6 @@
 package com.example.steve.deadhorse;
 
+import org.apache.commons.io.FileUtils;
 import org.w3c.dom.*;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
@@ -7,6 +8,7 @@ import org.xml.sax.SAXException;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
+import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
@@ -20,6 +22,19 @@ public class XmlGG {
     private final String xml;
     private final String className;
     private final Map<String, String> namespaceMap = new HashMap<String, String>();
+
+    public static void main(String[] args) throws Exception {
+        if (args.length != 2) {
+            System.out.println("usage: xmlFilename, outputClassName");
+            System.exit(-1);
+        }
+        String className = args[1];
+        XmlGG xmlGG = new XmlGG(FileUtils.readFileToString(new File(args[0])), className);
+        String src = xmlGG.generate();
+        File javaFile = new File(String.format("%s.java", className));
+        FileUtils.writeStringToFile(javaFile, src);
+        System.out.println(String.format("Wrote file %s",javaFile.getAbsolutePath()));
+    }
 
     public XmlGG(String xml, String className) {
         this.xml = xml;
@@ -46,6 +61,7 @@ public class XmlGG {
             src.append(".withDefaultNamespace(").append("\"").append(defaultNamespace).append("\"")
                     .append(")");
         } else if (element.getTagName().contains(":")) {
+            namespaceURI = checkUriForPrefix(prefix, namespaceURI);
             src.append(String.format("document(\"%s\",NamespaceUriPrefixMapping.namespace(\"%s\",\"%s\"))", elementName(element), namespaceURI, prefix));
         } else {
             documentRootWithoutPrefixNamespace(element, src);
@@ -72,13 +88,20 @@ public class XmlGG {
 
     private String namespaceUriFromXmlnsAttribute(Element element) {
 
-        String xmlnsAttribute = element.getAttribute(XMLNS_ATTRIBUTE);
-        if (xmlnsAttribute.contains(":")) {
-            int colonIndex = xmlnsAttribute.indexOf(":");
-            String prefix = xmlnsAttribute.substring(0, colonIndex);
-            String uri = xmlnsAttribute.substring(colonIndex + 1);
-            namespaceMap.put(prefix, uri);
-            return uri;
+        NamedNodeMap attributes = element.getAttributes();
+        for (int i = 0; i < attributes.getLength(); i++) {
+            Node attribute = attributes.item(i);
+            String attributeName = attribute.getNodeName();
+            if (attributeName.startsWith(XMLNS_ATTRIBUTE + ":")) {
+                int colonIndex = attributeName.indexOf(":");
+                String prefix = attributeName.substring(colonIndex + 1);
+                String uri = attribute.getNodeValue();
+                namespaceMap.put(prefix, uri);
+            }
+        }
+        if (element.hasAttribute(XMLNS_ATTRIBUTE)) {
+            String attribute = element.getAttribute(XMLNS_ATTRIBUTE);
+            return element.getAttributeNode(XMLNS_ATTRIBUTE).getValue();
         }
         return null;
     }
@@ -139,10 +162,8 @@ public class XmlGG {
 
         if (null == prefix) {
             src.append(String.format("element(\"%s\")", node.getNodeName()));
-        } else  {
-            if(null == uri) {
-                uri = namespaceMap.get(prefix);
-            }
+        } else {
+            uri = checkUriForPrefix(prefix, uri);
             src.append(String.format("element(NamespaceUriPrefixMapping.namespace(\"%s\",\"%s\"),\"%s\")", uri, prefix, elementName(node)));
 
         }
@@ -160,13 +181,23 @@ public class XmlGG {
         }
     }
 
+    private String checkUriForPrefix(String prefix, String uri) {
+        if (null == uri) {
+            uri = namespaceMap.get(prefix);
+        }
+        return uri;
+    }
+
     private void attributes(Node node, StringWriter src) {
         if (node.hasAttributes()) {
             NamedNodeMap attributes = node.getAttributes();
-            if (attributes.getNamedItem("xmlns") != null) {
-                attributes.removeNamedItem("xmlns");
+            for (int i = 0; i < attributes.getLength(); i++) {
+                Node attribute = attributes.item(i);
+                String attributeName = attribute.getNodeName();
+                if (attributeName.startsWith(XMLNS_ATTRIBUTE)) {
+                    attributes.removeNamedItem(attributeName);
+                }
             }
-
             if (attributes.getLength() > 0) {
                 src.append(".with(");
                 for (int i = 0; i < attributes.getLength(); i++) {
