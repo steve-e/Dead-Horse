@@ -1,16 +1,10 @@
 package com.example.steve.deadhorse;
 
-import org.apache.commons.io.FileUtils;
 import org.w3c.dom.*;
-import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
-import java.io.File;
 import java.io.IOException;
-import java.io.StringReader;
 import java.io.StringWriter;
 import java.util.HashMap;
 import java.util.Map;
@@ -22,73 +16,61 @@ public class XmlGG {
     private final String xml;
     private final String className;
     private final Map<String, String> namespaceMap = new HashMap<String, String>();
-
-    public static void main(String[] args) throws Exception {
-        if (args.length != 2) {
-            System.out.println("usage: xmlFilename, outputClassName");
-            System.exit(-1);
-        }
-        String className = args[1];
-        XmlGG xmlGG = new XmlGG(FileUtils.readFileToString(new File(args[0])), className);
-        String src = xmlGG.generate();
-        File javaFile = new File(String.format("%s.java", className));
-        FileUtils.writeStringToFile(javaFile, src);
-        System.out.println(String.format("Wrote file %s", javaFile.getAbsolutePath()));
-    }
+    private DocumentLoader documentLoader;
 
     public XmlGG(String xml, String className) {
         this.xml = xml;
         this.className = className;
+        documentLoader = new DocumentLoader();
     }
 
-    public String generate() throws ParserConfigurationException, IOException, SAXException {
-        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-        DocumentBuilder builder = factory.newDocumentBuilder();
-        InputSource inStream = new InputSource();
-        inStream.setCharacterStream(new StringReader(xml));
-        Document document = builder.parse(inStream);
+    public String generateSrc() throws ParserConfigurationException, IOException, SAXException {
+        Element element = documentElement();
+        StringWriter src = new StringWriter();
 
+        classDeclarationStart(src);
+        documentRoot(element, src);
+        elements(element, src);
+        classEnd(src);
+
+        return src.toString();
+    }
+
+    private Element documentElement() throws ParserConfigurationException, SAXException, IOException {
+        Document document = documentLoader.document(xml);
         Element element = document.getDocumentElement();
         removeEmptyTextNodes(element);
+        return element;
+    }
 
-        StringWriter src = new StringWriter();
-        classDeclarationStart(src);
+    private void documentRoot(Element element, StringWriter src) {
         String namespaceURI = namespaceUriFromXmlnsAttribute(element);
         String defaultNamespace = defaultNamespace(element);
         String prefix = prefix(element);
 
         if (defaultNamespace != null && !defaultNamespace.trim().equals("") && null == prefix) {
             documentRootWithoutPrefixNamespace(element, src);
-            src.append(".withDefaultNamespace(").append("\"").append(defaultNamespace).append("\"")
-                    .append(")");
+            documentDefaultNamespace(src, defaultNamespace);
         } else if (element.getTagName().contains(":")) {
-            namespaceURI = checkUriForPrefix(prefix, namespaceURI);
-            src.append(String.format("document(\"%s\",NamespaceUriPrefixMapping.namespace(\"%s\",\"%s\"))", elementName(element), namespaceURI, prefix));
+            documentRootInNamespace(element, src, namespaceURI, prefix);
         } else {
             documentRootWithoutPrefixNamespace(element, src);
         }
 
         attributes(element, src);
+    }
 
-        if (element.hasChildNodes()) {
-            src.append(".with(");
-            NodeList childNodes = element.getChildNodes();
-            for (int i = 0; i < childNodes.getLength(); i++) {
-                node(src, childNodes.item(i));
-                if (i + 1 < childNodes.getLength()) {
-                    src.append(", \n");
-                }
-            }
-            src.append(")\n");
-        }
+    private void documentRootInNamespace(Element element, StringWriter src, String namespaceURI, String prefix) {
+        namespaceURI = getUriForPrefix(prefix, namespaceURI);
+        src.append(String.format("document(\"%s\",NamespaceUriPrefixMapping.namespace(\"%s\",\"%s\"))", elementName(element), namespaceURI, prefix));
+    }
 
-        classEnd(src);
-
-        return src.toString();
+    private void documentDefaultNamespace(StringWriter src, String defaultNamespace) {
+        src.append(".withDefaultNamespace(").append("\"").append(defaultNamespace).append("\"")
+                .append(")");
     }
 
     private String namespaceUriFromXmlnsAttribute(Element element) {
-
         NamedNodeMap attributes = element.getAttributes();
         for (int i = 0; i < attributes.getLength(); i++) {
             Node attribute = attributes.item(i);
@@ -114,6 +96,24 @@ public class XmlGG {
         return null;
     }
 
+    private void documentRootWithoutPrefixNamespace(Element element, StringWriter src) {
+        src.append(String.format("document(\"%s\")", elementName(element)));
+    }
+
+    private void elements(Element element, StringWriter src) {
+        if (element.hasChildNodes()) {
+            src.append(".with(");
+            NodeList childNodes = element.getChildNodes();
+            for (int i = 0; i < childNodes.getLength(); i++) {
+                node(src, childNodes.item(i));
+                if (i + 1 < childNodes.getLength()) {
+                    src.append(", \n");
+                }
+            }
+            src.append(")\n");
+        }
+    }
+
     private String prefix(Node element) {
         String tagName = element.getNodeName();
         if (tagName.contains(":")) {
@@ -132,15 +132,6 @@ public class XmlGG {
         return tagName;
     }
 
-    private void documentRootWithoutPrefixNamespace(Element element, StringWriter src) {
-        src.append(String.format("document(\"%s\")", elementName(element)));
-    }
-
-    private void classEnd(StringWriter src) {
-        src.append(".build();}\n" +
-                "}");
-    }
-
     private void classDeclarationStart(StringWriter src) {
         src.append("import org.w3c.dom.Document;\n" +
                 "import org.w3c.dom.Element;\n" +
@@ -156,6 +147,11 @@ public class XmlGG {
                 "");
     }
 
+    private void classEnd(StringWriter src) {
+        src.append(".build();}\n" +
+                "}");
+    }
+
     private void children(Element node, StringWriter src) {
         String uri = namespaceUriFromXmlnsAttribute(node);
         String prefix = prefix(node);
@@ -163,23 +159,13 @@ public class XmlGG {
         if (null == prefix) {
             src.append(String.format("element(\"%s\")", node.getNodeName()));
         } else {
-            uri = checkUriForPrefix(prefix, uri);
+            uri = getUriForPrefix(prefix, uri);
             src.append(String.format("element(NamespaceUriPrefixMapping.namespace(\"%s\",\"%s\"),\"%s\")", uri, prefix, elementName(node)));
 
         }
         attributes(node, src);
         removeEmptyTextNodes(node);
-        if (node.hasChildNodes()) {
-            src.append(".with(");
-            NodeList childNodes = node.getChildNodes();
-            for (int i = 0; i < childNodes.getLength(); i++) {
-                node(src, childNodes.item(i));
-                if (i + 1 < childNodes.getLength()) {
-                    src.append(", \n");
-                }
-            }
-            src.append(")\n");
-        }
+        elements(node, src);
     }
 
     private void removeEmptyTextNodes(Element node) {
@@ -194,7 +180,7 @@ public class XmlGG {
         }
     }
 
-    private String checkUriForPrefix(String prefix, String uri) {
+    private String getUriForPrefix(String prefix, String uri) {
         if (null == uri) {
             uri = namespaceMap.get(prefix);
         }
