@@ -133,23 +133,21 @@ public class XmlGG {
     }
 
     private void classDeclarationStart(StringWriter src) {
-        src.append("import org.w3c.dom.Document;\n" +
-                "import org.w3c.dom.Element;\n" +
-                "import uk.co.mrmarkb.xmlbuild.*;\n" +
-                "import static uk.co.mrmarkb.xmlbuild.NamespaceUriPrefixMapping.namespace;\n" +
-                "import static uk.co.mrmarkb.xmlbuild.XmlBuilderFactory.*;\n" +
-                "import static uk.co.mrmarkb.xmlbuild.XmlRenderer.render;\n\n" +
-                "public class " +
-                className +
-                " {\n" +
-                "\tpublic Document build() {\n" +
-                "return " +
-                "");
+        src.append("import org.w3c.dom.Document;\n").append(
+                "import org.w3c.dom.Element;\n").append(
+                "import uk.co.mrmarkb.xmlbuild.*;\n").append(
+                "import static uk.co.mrmarkb.xmlbuild.NamespaceUriPrefixMapping.namespace;\n").append(
+                "import static uk.co.mrmarkb.xmlbuild.XmlBuilderFactory.*;\n").append(
+                "import static uk.co.mrmarkb.xmlbuild.XmlRenderer.render;\n\n").append(
+                "public class ").append(
+                className).append(
+                " {\n").append(
+                "\tpublic Document build() {\n").append(
+                "return ");
     }
 
     private void classEnd(StringWriter src) {
-        src.append(".build();}\n" +
-                "}");
+        src.append(".build();}\n").append("}");
     }
 
     private void children(Element node, StringWriter src) {
