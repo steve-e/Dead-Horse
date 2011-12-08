@@ -14,7 +14,12 @@
             <artifactId>XmlBuilder</artifactId>
             <version>1.6-SNAPSHOT</version>
         </dependency>
-  	<dependency>
+        <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+            <version>2.1</version>
+        </dependency>
+        <dependency>
             <groupId>junit</groupId>
             <artifactId>junit-dep</artifactId>
             <version>4.8.2</version>
@@ -22,7 +27,7 @@
         </dependency>
 
     </dependencies>
- <build>
+    <build>
         <plugins>
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -46,7 +51,6 @@
             </plugin>
         </plugins>
     </build>
-
 
 
 </project>
