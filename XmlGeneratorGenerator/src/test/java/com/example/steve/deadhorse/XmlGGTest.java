@@ -3,7 +3,6 @@ package com.example.steve.deadhorse;
 import org.junit.Test;
 
 import javax.tools.*;
-import java.net.URI;
 import java.util.Arrays;
 
 import static org.junit.Assert.assertThat;
@@ -12,58 +11,22 @@ import static org.junit.matchers.JUnitMatchers.containsString;
 
 public class XmlGGTest {
 
-
     @Test
     public void testSimple() throws Exception {
         String xml = "<root/>";
         XmlGG xmlGG = new XmlGG(xml, "Test");
-        String src = xmlGG.generate();
+        String src = xmlGG.generateSrc();
         assertThat(src, containsString("document(\"root\")"));
         canCompile(src);
     }
 
-    private void canCompile(String src) {
-        JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-        StandardJavaFileManager fileManager = compiler.getStandardFileManager(null, null, null);
-        JavaSourceFromString javaSource = new JavaSourceFromString("Test", src);
-        Iterable<? extends JavaFileObject> javaFileObjects = Arrays.asList(javaSource);
-        JavaCompiler.CompilationTask task = compiler.getTask(null, fileManager, null, null, null, javaFileObjects);
-        Boolean result = task.call();
-        System.out.println("src = " + src);
-        assertTrue("compilation should pass", result);
-    }
-
-    public class JavaSourceFromString extends SimpleJavaFileObject {
-        /**
-         * The source code of this "file".
-         */
-        final String code;
-
-        /**
-         * Constructs a new JavaSourceFromString.
-         *
-         * @param name the name of the compilation unit represented by this file object
-         * @param code the source code for the compilation unit represented by this file object
-         */
-        JavaSourceFromString(String name, String code) {
-            super(URI.create("string:///" + name.replace('.', '/') + Kind.SOURCE.extension), Kind.SOURCE);
-            this.code = code;
-        }
-
-        @Override
-        public CharSequence getCharContent(boolean ignoreEncodingErrors) {
-            return code;
-        }
-    }
-
     @Test
     public void testChild() throws Exception {
-        String xml =
-                "<root>" +
-                        "   <child/>" +
-                        "</root>";
+        String xml = "<root>" +
+                "   <child/>" +
+                "</root>";
         XmlGG xmlGG = new XmlGG(xml, "Test");
-        String src = xmlGG.generate();
+        String src = xmlGG.generateSrc();
         assertThat(src, containsString("document(\"root\").with(" +
                 "element(\"child\")" +
                 ")"));
@@ -74,7 +37,7 @@ public class XmlGGTest {
     public void testTwoChildren() throws Exception {
         String xml = "<root><child/><child/></root>";
         XmlGG xmlGG = new XmlGG(xml, "Test");
-        String src = xmlGG.generate();
+        String src = xmlGG.generateSrc();
         assertThat(src, containsString("document(\"root\").with(" +
                 "element(\"child\"), \n" +
                 "element(\"child\")" +
@@ -86,7 +49,7 @@ public class XmlGGTest {
     public void testAttributeInChild() throws Exception {
         String xml = "<root><child foo=\"bar\"/></root>";
         XmlGG xmlGG = new XmlGG(xml, "Test");
-        String src = xmlGG.generate();
+        String src = xmlGG.generateSrc();
         assertThat(src, containsString("document(\"root\").with(" +
                 "element(\"child\").with(" +
                 "attribute(\"foo\", \"bar\")" +
@@ -99,7 +62,7 @@ public class XmlGGTest {
     public void testAttributeInRoot() throws Exception {
         String xml = "<root foo=\"bar\"/>";
         XmlGG xmlGG = new XmlGG(xml, "Test");
-        String src = xmlGG.generate();
+        String src = xmlGG.generateSrc();
         assertThat(src, containsString("document(\"root\").with(" +
                 "attribute(\"foo\", \"bar\")" +
                 ")"));
@@ -110,28 +73,28 @@ public class XmlGGTest {
     public void testElementInDefaultNamespace() throws Exception {
         String xml = "<root xmlns=\"def\" />";
         XmlGG xmlGG = new XmlGG(xml, "Test");
-        String src = xmlGG.generate();
+        String src = xmlGG.generateSrc();
         assertThat(src, containsString("document(\"root\").withDefaultNamespace(" +
                 "\"def\"" +
                 ")"));
         canCompile(src);
     }
 
-
     @Test
     public void testElementWithNamespace() throws Exception {
         String xml = "<root xmlns:foo=\"bar\" />";
         XmlGG xmlGG = new XmlGG(xml, "Test");
-        String src = xmlGG.generate();
+        String src = xmlGG.generateSrc();
         assertThat(src, containsString("document(\"root\").build()"));
         canCompile(src);
     }
+
 
     @Test
     public void testRootElementInNamespace() throws Exception {
         String xml = "<foo:root xmlns:foo=\"bar\" />";
         XmlGG xmlGG = new XmlGG(xml, "Test");
-        String src = xmlGG.generate();
+        String src = xmlGG.generateSrc();
         assertThat(src, containsString("document(\"root\",NamespaceUriPrefixMapping.namespace(\"bar\",\"foo\")).build()"));
         canCompile(src);
     }
@@ -140,7 +103,7 @@ public class XmlGGTest {
     public void testElementInNamespace() throws Exception {
         String xml = "<root><baz:child xmlns:baz=\"buzz\" /></root>";
         XmlGG xmlGG = new XmlGG(xml, "Test");
-        String src = xmlGG.generate();
+        String src = xmlGG.generateSrc();
         assertThat(src, containsString("document(\"root\").with(" +
                 "element(NamespaceUriPrefixMapping.namespace(\"buzz\",\"baz\"),\"child\"))"));
         canCompile(src);
@@ -150,7 +113,7 @@ public class XmlGGTest {
     public void testDescendantElementInNamespace() throws Exception {
         String xml = "<root><baz:child xmlns:baz=\"buzz\" ><baz:foo/></baz:child></root>";
         XmlGG xmlGG = new XmlGG(xml, "Test");
-        String src = xmlGG.generate();
+        String src = xmlGG.generateSrc();
         assertThat(src, containsString("document(\"root\").with(" +
                 "element(NamespaceUriPrefixMapping.namespace(\"buzz\",\"baz\"),\"child\").with(" +
                 "element(NamespaceUriPrefixMapping.namespace(\"buzz\",\"baz\"),\"foo\")" +
@@ -162,7 +125,7 @@ public class XmlGGTest {
     public void testChildWithText() throws Exception {
         String xml = "<root><child>child text</child></root>";
         XmlGG xmlGG = new XmlGG(xml, "Test");
-        String src = xmlGG.generate();
+        String src = xmlGG.generateSrc();
         assertThat(src, containsString("document(\"root\").with(" +
                 "element(\"child\").with(" +
                 "text(\"child text\")" +
@@ -174,7 +137,7 @@ public class XmlGGTest {
     public void testTextNode() throws Exception {
         String xml = "<root>child</root>";
         XmlGG xmlGG = new XmlGG(xml, "Test");
-        String src = xmlGG.generate();
+        String src = xmlGG.generateSrc();
         assertThat(src, containsString("document(\"root\").with(" +
                 "text(\"child\")" +
                 ")"));
@@ -185,7 +148,7 @@ public class XmlGGTest {
     public void testBig() throws Exception {
         String xml = "<root><child a='b' c='d'><e/><e/><d d1='1'/></child></root>";
         XmlGG xmlGG = new XmlGG(xml, "Test");
-        String src = xmlGG.generate();
+        String src = xmlGG.generateSrc();
 
         canCompile(src);
     }
@@ -211,9 +174,19 @@ public class XmlGGTest {
                 "  </body>\n" +
                 "</html>";
         XmlGG xmlGG = new XmlGG(xml, "Test");
-        String src = xmlGG.generate();
+        String src = xmlGG.generateSrc();
 
         canCompile(src);
+    }
+
+    private void canCompile(String src) {
+        JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+        StandardJavaFileManager fileManager = compiler.getStandardFileManager(null, null, null);
+        JavaSourceFromString javaSource = new JavaSourceFromString("Test", src);
+        Iterable<? extends JavaFileObject> javaFileObjects = Arrays.asList(javaSource);
+        JavaCompiler.CompilationTask task = compiler.getTask(null, fileManager, null, null, null, javaFileObjects);
+        Boolean result = task.call();
+        assertTrue("compilation should pass", result);
     }
 }
 

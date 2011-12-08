@@ -3,11 +3,6 @@ package com.example.steve.deadhorse;
 import javax.tools.SimpleJavaFileObject;
 import java.net.URI;
 
-/**
-* User: works
-* Date: 08/12/11
-* Time: 20:35
-*/
 public class JavaSourceFromString extends SimpleJavaFileObject {
     /**
      * The source code of this "file".

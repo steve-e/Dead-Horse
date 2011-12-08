@@ -10,11 +10,6 @@ import javax.xml.parsers.ParserConfigurationException;
 import java.io.IOException;
 import java.io.StringReader;
 
-/**
-* User: works
-* Date: 08/12/11
-* Time: 20:43
-*/
 public class DocumentLoader {
 
     public Document document(String xml) throws ParserConfigurationException, SAXException, IOException {
