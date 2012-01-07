@@ -6,26 +6,24 @@ import org.xml.sax.SAXException;
 import javax.xml.parsers.ParserConfigurationException;
 import java.io.IOException;
 import java.io.StringWriter;
-import java.util.HashMap;
-import java.util.Map;
 
 import static javax.xml.XMLConstants.XMLNS_ATTRIBUTE;
 
 public class XmlGG {
 
-    private final String xml;
     private final String className;
-    private final Map<String, String> namespaceMap = new HashMap<String, String>();
-    private DocumentLoader documentLoader;
 
-    public XmlGG(String xml, String className) {
-        this.xml = xml;
+    private final DocumentLoader documentLoader;
+    private final NamespaceHandler namespaceHandler;
+
+    public XmlGG(String className) {
         this.className = className;
         documentLoader = new DocumentLoader();
+        namespaceHandler = new NamespaceHandler();
     }
 
-    public String generateSrc() throws ParserConfigurationException, IOException, SAXException {
-        Element element = documentElement();
+    public String generateSrc(String xml) throws ParserConfigurationException, IOException, SAXException {
+        Element element = documentElement(xml);
         StringWriter src = new StringWriter();
 
         classDeclarationStart(src);
@@ -36,7 +34,7 @@ public class XmlGG {
         return src.toString();
     }
 
-    private Element documentElement() throws ParserConfigurationException, SAXException, IOException {
+    private Element documentElement(String xml) throws ParserConfigurationException, SAXException, IOException {
         Document document = documentLoader.document(xml);
         Element element = document.getDocumentElement();
         removeEmptyTextNodes(element);
@@ -44,8 +42,8 @@ public class XmlGG {
     }
 
     private void documentRoot(Element element, StringWriter src) {
-        String namespaceURI = namespaceUriFromXmlnsAttribute(element);
-        String defaultNamespace = defaultNamespace(element);
+        String namespaceURI = namespaceHandler.namespaceUriFromXmlnsAttribute(element);
+        String defaultNamespace = namespaceHandler.defaultNamespace(element);
         String prefix = prefix(element);
 
         if (defaultNamespace != null && !defaultNamespace.trim().equals("") && null == prefix) {
@@ -56,44 +54,17 @@ public class XmlGG {
         } else {
             documentRootWithoutPrefixNamespace(element, src);
         }
-
         attributes(element, src);
     }
 
     private void documentRootInNamespace(Element element, StringWriter src, String namespaceURI, String prefix) {
-        namespaceURI = getUriForPrefix(prefix, namespaceURI);
+        namespaceURI = namespaceHandler.getUriForPrefix(prefix, namespaceURI);
         src.append(String.format("document(\"%s\",NamespaceUriPrefixMapping.namespace(\"%s\",\"%s\"))", elementName(element), namespaceURI, prefix));
     }
 
     private void documentDefaultNamespace(StringWriter src, String defaultNamespace) {
         src.append(".withDefaultNamespace(").append("\"").append(defaultNamespace).append("\"")
                 .append(")");
-    }
-
-    private String namespaceUriFromXmlnsAttribute(Element element) {
-        NamedNodeMap attributes = element.getAttributes();
-        for (int i = 0; i < attributes.getLength(); i++) {
-            Node attribute = attributes.item(i);
-            String attributeName = attribute.getNodeName();
-            if (attributeName.startsWith(XMLNS_ATTRIBUTE + ":")) {
-                int colonIndex = attributeName.indexOf(":");
-                String prefix = attributeName.substring(colonIndex + 1);
-                String uri = attribute.getNodeValue();
-                namespaceMap.put(prefix, uri);
-            }
-        }
-        if (element.hasAttribute(XMLNS_ATTRIBUTE)) {
-            return element.getAttributeNode(XMLNS_ATTRIBUTE).getValue();
-        }
-        return null;
-    }
-
-    private String defaultNamespace(Element element) {
-        String xmlnsAttribute = element.getAttribute(XMLNS_ATTRIBUTE);
-        if (!xmlnsAttribute.contains(":")) {
-            return xmlnsAttribute;
-        }
-        return null;
     }
 
     private void documentRootWithoutPrefixNamespace(Element element, StringWriter src) {
@@ -151,13 +122,13 @@ public class XmlGG {
     }
 
     private void children(Element node, StringWriter src) {
-        String uri = namespaceUriFromXmlnsAttribute(node);
+        String uri = namespaceHandler.namespaceUriFromXmlnsAttribute(node);
         String prefix = prefix(node);
 
         if (null == prefix) {
             src.append(String.format("element(\"%s\")", node.getNodeName()));
         } else {
-            uri = getUriForPrefix(prefix, uri);
+            uri = namespaceHandler.getUriForPrefix(prefix, uri);
             src.append(String.format("element(NamespaceUriPrefixMapping.namespace(\"%s\",\"%s\"),\"%s\")", uri, prefix, elementName(node)));
 
         }
@@ -176,13 +147,6 @@ public class XmlGG {
                 }
             }
         }
-    }
-
-    private String getUriForPrefix(String prefix, String uri) {
-        if (null == uri) {
-            uri = namespaceMap.get(prefix);
-        }
-        return uri;
     }
 
     private void attributes(Node node, StringWriter src) {

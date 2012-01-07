@@ -1,8 +1,11 @@
 package com.example.steve.deadhorse;
 
 import org.junit.Test;
+import org.xml.sax.SAXException;
 
 import javax.tools.*;
+import javax.xml.parsers.ParserConfigurationException;
+import java.io.IOException;
 import java.util.Arrays;
 
 import static org.junit.Assert.assertThat;
@@ -14,8 +17,7 @@ public class XmlGGTest {
     @Test
     public void testSimple() throws Exception {
         String xml = "<root/>";
-        XmlGG xmlGG = new XmlGG(xml, "Test");
-        String src = xmlGG.generateSrc();
+        String src = generateSrc(xml);
         assertThat(src, containsString("document(\"root\")"));
         canCompile(src);
     }
@@ -25,8 +27,7 @@ public class XmlGGTest {
         String xml = "<root>" +
                 "   <child/>" +
                 "</root>";
-        XmlGG xmlGG = new XmlGG(xml, "Test");
-        String src = xmlGG.generateSrc();
+        String src = generateSrc(xml);
         assertThat(src, containsString("document(\"root\").with(" +
                 "element(\"child\")" +
                 ")"));
@@ -36,8 +37,7 @@ public class XmlGGTest {
     @Test
     public void testTwoChildren() throws Exception {
         String xml = "<root><child/><child/></root>";
-        XmlGG xmlGG = new XmlGG(xml, "Test");
-        String src = xmlGG.generateSrc();
+        String src = generateSrc(xml);
         assertThat(src, containsString("document(\"root\").with(" +
                 "element(\"child\"), \n" +
                 "element(\"child\")" +
@@ -48,8 +48,7 @@ public class XmlGGTest {
     @Test
     public void testAttributeInChild() throws Exception {
         String xml = "<root><child foo=\"bar\"/></root>";
-        XmlGG xmlGG = new XmlGG(xml, "Test");
-        String src = xmlGG.generateSrc();
+        String src = generateSrc(xml);
         assertThat(src, containsString("document(\"root\").with(" +
                 "element(\"child\").with(" +
                 "attribute(\"foo\", \"bar\")" +
@@ -61,8 +60,7 @@ public class XmlGGTest {
     @Test
     public void testAttributeInRoot() throws Exception {
         String xml = "<root foo=\"bar\"/>";
-        XmlGG xmlGG = new XmlGG(xml, "Test");
-        String src = xmlGG.generateSrc();
+        String src = generateSrc(xml);
         assertThat(src, containsString("document(\"root\").with(" +
                 "attribute(\"foo\", \"bar\")" +
                 ")"));
@@ -72,8 +70,7 @@ public class XmlGGTest {
     @Test
     public void testElementInDefaultNamespace() throws Exception {
         String xml = "<root xmlns=\"def\" />";
-        XmlGG xmlGG = new XmlGG(xml, "Test");
-        String src = xmlGG.generateSrc();
+        String src = generateSrc(xml);
         assertThat(src, containsString("document(\"root\").withDefaultNamespace(" +
                 "\"def\"" +
                 ")"));
@@ -83,8 +80,7 @@ public class XmlGGTest {
     @Test
     public void testElementWithNamespace() throws Exception {
         String xml = "<root xmlns:foo=\"bar\" />";
-        XmlGG xmlGG = new XmlGG(xml, "Test");
-        String src = xmlGG.generateSrc();
+        String src = generateSrc(xml);
         assertThat(src, containsString("document(\"root\").build()"));
         canCompile(src);
     }
@@ -93,8 +89,7 @@ public class XmlGGTest {
     @Test
     public void testRootElementInNamespace() throws Exception {
         String xml = "<foo:root xmlns:foo=\"bar\" />";
-        XmlGG xmlGG = new XmlGG(xml, "Test");
-        String src = xmlGG.generateSrc();
+        String src = generateSrc(xml);
         assertThat(src, containsString("document(\"root\",NamespaceUriPrefixMapping.namespace(\"bar\",\"foo\")).build()"));
         canCompile(src);
     }
@@ -102,8 +97,7 @@ public class XmlGGTest {
     @Test
     public void testElementInNamespace() throws Exception {
         String xml = "<root><baz:child xmlns:baz=\"buzz\" /></root>";
-        XmlGG xmlGG = new XmlGG(xml, "Test");
-        String src = xmlGG.generateSrc();
+        String src = generateSrc(xml);
         assertThat(src, containsString("document(\"root\").with(" +
                 "element(NamespaceUriPrefixMapping.namespace(\"buzz\",\"baz\"),\"child\"))"));
         canCompile(src);
@@ -112,8 +106,7 @@ public class XmlGGTest {
     @Test
     public void testDescendantElementInNamespace() throws Exception {
         String xml = "<root><baz:child xmlns:baz=\"buzz\" ><baz:foo/></baz:child></root>";
-        XmlGG xmlGG = new XmlGG(xml, "Test");
-        String src = xmlGG.generateSrc();
+        String src = generateSrc(xml);
         assertThat(src, containsString("document(\"root\").with(" +
                 "element(NamespaceUriPrefixMapping.namespace(\"buzz\",\"baz\"),\"child\").with(" +
                 "element(NamespaceUriPrefixMapping.namespace(\"buzz\",\"baz\"),\"foo\")" +
@@ -124,8 +117,7 @@ public class XmlGGTest {
     @Test
     public void testChildWithText() throws Exception {
         String xml = "<root><child>child text</child></root>";
-        XmlGG xmlGG = new XmlGG(xml, "Test");
-        String src = xmlGG.generateSrc();
+        String src = generateSrc(xml);
         assertThat(src, containsString("document(\"root\").with(" +
                 "element(\"child\").with(" +
                 "text(\"child text\")" +
@@ -136,8 +128,7 @@ public class XmlGGTest {
     @Test
     public void testTextNode() throws Exception {
         String xml = "<root>child</root>";
-        XmlGG xmlGG = new XmlGG(xml, "Test");
-        String src = xmlGG.generateSrc();
+        String src = generateSrc(xml);
         assertThat(src, containsString("document(\"root\").with(" +
                 "text(\"child\")" +
                 ")"));
@@ -147,10 +138,14 @@ public class XmlGGTest {
     @Test
     public void testBig() throws Exception {
         String xml = "<root><child a='b' c='d'><e/><e/><d d1='1'/></child></root>";
-        XmlGG xmlGG = new XmlGG(xml, "Test");
-        String src = xmlGG.generateSrc();
+        String src = generateSrc(xml);
 
         canCompile(src);
+    }
+
+    private String generateSrc(String xml) throws ParserConfigurationException, IOException, SAXException {
+        XmlGG xmlGG = new XmlGG("Test");
+        return xmlGG.generateSrc(xml);
     }
 
     @Test
@@ -173,8 +168,7 @@ public class XmlGGTest {
                 "    </xsl:for-each>\n" +
                 "  </body>\n" +
                 "</html>";
-        XmlGG xmlGG = new XmlGG(xml, "Test");
-        String src = xmlGG.generateSrc();
+        String src = generateSrc(xml);
 
         canCompile(src);
     }
