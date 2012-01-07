@@ -5,6 +5,7 @@ import org.xml.sax.SAXException;
 
 import javax.tools.*;
 import javax.xml.parsers.ParserConfigurationException;
+import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 
@@ -13,6 +14,8 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.matchers.JUnitMatchers.containsString;
 
 public class XmlGGTest {
+
+    public static final String CLASS_NAME = "Test";
 
     @Test
     public void testSimple() throws Exception {
@@ -144,7 +147,7 @@ public class XmlGGTest {
     }
 
     private String generateSrc(String xml) throws ParserConfigurationException, IOException, SAXException {
-        XmlGG xmlGG = new XmlGG("Test");
+        XmlGG xmlGG = new XmlGG(CLASS_NAME);
         return xmlGG.generateSrc(xml);
     }
 
@@ -176,11 +179,12 @@ public class XmlGGTest {
     private void canCompile(String src) {
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         StandardJavaFileManager fileManager = compiler.getStandardFileManager(null, null, null);
-        JavaSourceFromString javaSource = new JavaSourceFromString("Test", src);
+        JavaSourceFromString javaSource = new JavaSourceFromString(CLASS_NAME, src);
         Iterable<? extends JavaFileObject> javaFileObjects = Arrays.asList(javaSource);
         JavaCompiler.CompilationTask task = compiler.getTask(null, fileManager, null, null, null, javaFileObjects);
         Boolean result = task.call();
         assertTrue("compilation should pass", result);
+        new File(CLASS_NAME+".class").delete();
     }
 }
 
