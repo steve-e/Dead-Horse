@@ -105,7 +105,7 @@ public class XmlGG {
             src.append(".with(");
             NodeList childNodes = element.getChildNodes();
             for (int i = 0; i < childNodes.getLength(); i++) {
-                node(src, childNodes.item(i));
+                node(childNodes.item(i), src);
                 if (i + 1 < childNodes.getLength()) {
                     src.append(", \n");
                 }
@@ -208,14 +208,14 @@ public class XmlGG {
         }
     }
 
-    private void node(StringWriter src, Node node) {
+    private void node(Node node, StringWriter src) {
         short nodeType = node.getNodeType();
         switch (nodeType) {
             case Node.ELEMENT_NODE:
                 children((Element) node, src);
                 break;
             case Node.TEXT_NODE:
-                src.append(textNode(node));
+                textNode(node, src);
                 break;
             case Node.ATTRIBUTE_NODE:
                 attribute(node, src);
@@ -230,11 +230,10 @@ public class XmlGG {
                 .append("\"").append(node.getNodeName()).append("\"")
                 .append(", \"").append(node.getNodeValue()).append("\"")
                 .append(")");
-
     }
 
-    private CharSequence textNode(Node node) {
+    private void textNode(Node node, StringWriter src) {
         String value = node.getNodeValue().trim();
-        return String.format("text(\"%s\")", value);
+        src.append(String.format("text(\"%s\")", value));
     }
 }
